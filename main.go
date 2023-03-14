@@ -76,19 +76,19 @@ func crack(jwt, alphabet string, maxLen int, hash func() hash.Hash) (string, err
 	if err != nil {
 		return "", err
 	}
-	result := make(chan []byte, 1)
+	res := make(chan []byte, 1)
 	wg := sync.WaitGroup{}
 	for i := 0; i < len(alphabet); i++ {
 		wg.Add(1)
 		index := i
 		go func() {
-			brute(alphabet, index, maxLen, encrypt, signature, hash, result)
+			run(alphabet, index, maxLen, encrypt, signature, hash, res)
 			wg.Done()
 		}()
 	}
 	wg.Wait()
-	close(result)
-	secret, ok := <-result
+	close(res)
+	secret, ok := <-res
 	if ok {
 		return string(secret), nil
 	} else {
@@ -96,7 +96,7 @@ func crack(jwt, alphabet string, maxLen int, hash func() hash.Hash) (string, err
 	}
 }
 
-func brute(alphabet string, index int, maxLen int, encrypt []byte, signature []byte, hash func() hash.Hash, secret chan []byte) {
+func run(alphabet string, index int, maxLen int, encrypt []byte, signature []byte, hash func() hash.Hash, secret chan []byte) {
 	special := []byte{alphabet[index]}
 	if check(encrypt, signature, special, hash) {
 		secret <- special
@@ -105,20 +105,14 @@ func brute(alphabet string, index int, maxLen int, encrypt []byte, signature []b
 	buf := make([]byte, maxLen+1)
 	buf[0] = alphabet[index]
 	for i := 2; i <= maxLen; i++ {
-		if impl(buf, 1, i, alphabet, encrypt, signature, hash) {
+		if brute(buf, 1, i, alphabet, encrypt, signature, hash) {
 			secret <- buf[:i]
 			return
 		}
 	}
 }
 
-func check(payload []byte, signature []byte, secret []byte, hash func() hash.Hash) bool {
-	hm := hmac.New(hash, secret)
-	hm.Write(payload)
-	return bytes.Compare(hm.Sum(nil), signature) == 0
-}
-
-func impl(buf []byte, index int, maxDepth int, alphabet string, encrypt []byte, signature []byte, hash func() hash.Hash) bool {
+func brute(buf []byte, index int, maxDepth int, alphabet string, encrypt []byte, signature []byte, hash func() hash.Hash) bool {
 	for i := 0; i < len(alphabet); i++ {
 		buf[index] = alphabet[i]
 		if index == maxDepth-1 {
@@ -126,10 +120,16 @@ func impl(buf []byte, index int, maxDepth int, alphabet string, encrypt []byte, 
 				return true
 			}
 		} else {
-			if impl(buf, index+1, maxDepth, alphabet, encrypt, signature, hash) {
+			if brute(buf, index+1, maxDepth, alphabet, encrypt, signature, hash) {
 				return true
 			}
 		}
 	}
 	return false
+}
+
+func check(payload []byte, signature []byte, secret []byte, hash func() hash.Hash) bool {
+	hm := hmac.New(hash, secret)
+	hm.Write(payload)
+	return bytes.Compare(hm.Sum(nil), signature) == 0
 }

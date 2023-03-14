@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"hash"
 	"os"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -69,15 +68,9 @@ func (t *task) brute(buffer []byte, index int, maxDepth int) bool {
 }
 
 func (t *task) check(secret []byte) bool {
-	select {
-	case <-t.ctx.Done():
-		runtime.Goexit()
-		return false
-	default:
-		hm := hmac.New(t.hash, secret)
-		hm.Write(t.payload)
-		return bytes.Compare(hm.Sum(nil), t.signature) == 0
-	}
+	hm := hmac.New(t.hash, secret)
+	hm.Write(t.payload)
+	return bytes.Compare(hm.Sum(nil), t.signature) == 0
 }
 
 func main() {
@@ -100,7 +93,9 @@ func main() {
 			fmt.Printf("Invalid max_len value %s (%d), defaults to %d\n", args[3], v, maxLen)
 			return
 		}
-		maxLen = v
+		if v > 0 {
+			maxLen = v
+		}
 	}
 	if argc > 4 {
 		algorithm = args[4]

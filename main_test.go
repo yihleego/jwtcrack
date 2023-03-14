@@ -14,10 +14,10 @@ func TestCrack(t *testing.T) {
 	secret := "a2c4d"
 	actual, err := crack(jwt, "abcde12345", 6, sha256.New)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 	if actual != secret {
-		t.Error("incorrect secret", secret, actual)
+		t.Fatal("Incorrect secret", secret, actual)
 	}
-	t.Logf("secret is '%s'", secret)
+	t.Logf("Secret is '%s'", secret)
 }

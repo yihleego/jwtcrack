@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"hash"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -68,9 +69,15 @@ func (t *task) brute(buffer []byte, index int, maxDepth int) bool {
 }
 
 func (t *task) check(secret []byte) bool {
-	hm := hmac.New(t.hash, secret)
-	hm.Write(t.payload)
-	return bytes.Compare(hm.Sum(nil), t.signature) == 0
+	select {
+	case <-t.ctx.Done():
+		runtime.Goexit()
+		return false
+	default:
+		hm := hmac.New(t.hash, secret)
+		hm.Write(t.payload)
+		return bytes.Compare(hm.Sum(nil), t.signature) == 0
+	}
 }
 
 func main() {

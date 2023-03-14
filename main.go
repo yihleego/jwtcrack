@@ -68,11 +68,8 @@ func main() {
 
 func crack(jwt, alphabet string, maxLen int, hash func() hash.Hash) (string, error) {
 	parts := strings.Split(jwt, ".")
-	headerBase64 := parts[0]
-	payloadBase64 := parts[1]
-	signatureBase64 := parts[2]
-	encrypt := []byte(headerBase64 + "." + payloadBase64)
-	signature, err := base64.RawURLEncoding.DecodeString(signatureBase64)
+	encrypt := []byte(parts[0] + "." + parts[1])
+	signature, err := base64.RawURLEncoding.DecodeString(parts[2])
 	if err != nil {
 		return "", err
 	}

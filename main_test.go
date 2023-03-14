@@ -17,7 +17,7 @@ func TestCrack(t *testing.T) {
 		t.Fatal(err)
 	}
 	if actual != secret {
-		t.Fatal("Incorrect secret", secret, actual)
+		t.Fatal("incorrect secret", secret, actual)
 	}
-	t.Logf("Secret is '%s'", secret)
+	t.Logf("secret is '%s'", secret)
 }

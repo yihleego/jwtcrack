@@ -92,6 +92,7 @@ func crack(jwt, alphabet string, maxLen int, hash func() hash.Hash) (string, err
 		}()
 	}
 	wg.Wait()
+	close(result)
 	secret, ok := <-result
 	if ok {
 		return string(secret), nil

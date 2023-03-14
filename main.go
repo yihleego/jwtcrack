@@ -46,9 +46,17 @@ func main() {
 	if argc > 4 {
 		algorithm = args[4]
 	}
-	hf := h(algorithm)
-	if hf == nil {
+	var hf func() hash.Hash
+	switch algorithm {
+	case "HS256":
+		hf = sha256.New
+	case "HS384":
+		hf = sha512.New384
+	case "HS512":
+		hf = sha512.New
+	default:
 		fmt.Printf("Invalid algorithm %s\n", algorithm)
+		return
 	}
 	secret, err := crack(jwt, alphabet, maxLen, hf)
 	if err != nil {
@@ -56,19 +64,6 @@ func main() {
 		return
 	}
 	fmt.Printf("Secret is \"%s\"\n", secret)
-}
-
-func h(algorithm string) func() hash.Hash {
-	switch algorithm {
-	case "HS256":
-		return sha256.New
-	case "HS384":
-		return sha512.New384
-	case "HS512":
-		return sha512.New
-	default:
-		return nil
-	}
 }
 
 func crack(jwt, alphabet string, maxLen int, hash func() hash.Hash) (string, error) {

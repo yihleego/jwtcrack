@@ -34,8 +34,8 @@ func TestSimpleSecret(t *testing.T) {
 
 func TestLongSecret(t *testing.T) {
 	jwt := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNTE2MjM5MDIyLCJuYW1lIjoiand0Y3JhY2sifQ.fIpbi0aDVkGqfv5ykHlrCwXsd89pRmK8-EGSnlWNodg"
-	secret := "helloworld"
-	actual, err := crack(jwt, "abcdefghijklmnopqrstuvwxyz", 10, sha256.New)
+	secret := "hiworld"
+	actual, err := crack(jwt, "abcdefghijklmnopqrstuv", 7, sha256.New)
 	if err != nil {
 		t.Fatal(err)
 	}

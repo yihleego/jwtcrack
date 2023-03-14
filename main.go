@@ -38,9 +38,9 @@ func newTask(ctx context.Context, alphabet string, letter byte, maxLen int, payl
 }
 
 func (t *task) run() []byte {
-	special := []byte{t.letter}
-	if t.check(special) {
-		return special
+	single := []byte{t.letter}
+	if t.check(single) {
+		return single
 	}
 	buffer := make([]byte, t.maxLen+1)
 	buffer[0] = t.letter

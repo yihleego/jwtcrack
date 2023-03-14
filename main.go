@@ -1,113 +1,139 @@
 package main
 
 import (
+	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/base64"
+	"errors"
 	"fmt"
+	"hash"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+)
+
+const (
+	Alphabet  = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+	MaxLen    = 6
+	Algorithm = "sha256"
 )
 
 func main() {
 	args := os.Args
 	argc := len(args)
-	maxLen := 6
-	// by default, use OpenSSL EVP_sha256 which corresponds to JSON HS256 (HMAC-SHA256)
-	defaultHmacAlg := "sha256"
-	alphabet := "eariotnslcudpmhgbfywkvxzjqEARIOTNSLCUDPMHGBFYWKVXZJQ0123456789"
-
+	alphabet := Alphabet
+	maxLen := MaxLen
+	algorithm := Algorithm
 	if argc < 2 {
-		fmt.Printf("%s <token> [alphabet] [max_len] [hmac_alg]\nDefaults: alphabet=%s, max_len=%d, hmac_alg=%s\n", args[0], alphabet, maxLen, defaultHmacAlg)
+		fmt.Printf("%s <token> [alphabet] [max_len] [algorithm]\nDefaults: alphabet=%s, max_len=%d, algorithm=%s\n", args[0], alphabet, maxLen, algorithm)
 		return
 	}
-
-	// Get the token
 	jwt := args[1]
-
 	if argc > 2 {
 		alphabet = args[2]
 	}
 	if argc > 3 {
-		i3, err := strconv.Atoi(args[3])
+		v, err := strconv.Atoi(args[3])
 		if err != nil {
-			fmt.Printf("Invalid max_len value %s (%d), defaults to %d\n", args[3], i3, maxLen)
+			fmt.Printf("Invalid max_len value %s (%d), defaults to %d\n", args[3], v, maxLen)
 			return
 		}
-		maxLen = i3
+		maxLen = v
 	}
-
 	if argc > 4 {
-		evp_md := EVP_get_digestbyname(args[4])
-		if evp_md == nil {
-			fmt.Printf("Unknown message digest %s, will use default %s\n", args[4], defaultHmacAlg)
-		}
-	} else {
-		evp_md = nil
+		algorithm = args[4]
 	}
+	hf := h(algorithm)
+	if hf == nil {
+		fmt.Printf("Invalid algorithm %s\n", algorithm)
+	}
+	secret, err := crack(jwt, alphabet, maxLen, hf)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Printf("Secret is \"%s\"\n", secret)
+}
 
-	if evp_md == nil {
-		evp_md = EVP_get_digestbyname(defaultHmacAlg)
-		if evp_md == nil {
-			fmt.Printf("Cannot initialize the default message digest %s, aborting\n", defaultHmacAlg)
+func h(algorithm string) func() hash.Hash {
+	switch algorithm {
+	case "HS256":
+		return sha256.New
+	case "HS384":
+		return sha512.New384
+	case "HS512":
+		return sha512.New
+	default:
+		return nil
+	}
+}
+
+func crack(jwt, alphabet string, maxLen int, hash func() hash.Hash) (string, error) {
+	parts := strings.Split(jwt, ".")
+	headerBase64 := parts[0]
+	payloadBase64 := parts[1]
+	signatureBase64 := parts[2]
+	encrypt := []byte(headerBase64 + "." + payloadBase64)
+	signature, err := base64.RawURLEncoding.DecodeString(signatureBase64)
+	if err != nil {
+		return "", err
+	}
+	result := make(chan []byte, 1)
+	wg := sync.WaitGroup{}
+	for i := 0; i < len(alphabet); i++ {
+		wg.Add(1)
+		index := i
+		go func() {
+			brute(alphabet, index, maxLen, encrypt, signature, hash, result)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	secret, ok := <-result
+	if ok {
+		return string(secret), nil
+	} else {
+		return "", errors.New("no secret found")
+	}
+}
+
+func brute(alphabet string, index int, maxLen int, encrypt []byte, signature []byte, hash func() hash.Hash, secret chan []byte) {
+	special := []byte{alphabet[index]}
+	if check(encrypt, signature, special, hash) {
+		secret <- special
+		return
+	}
+	buf := make([]byte, maxLen+1)
+	buf[0] = alphabet[index]
+	for i := 2; i <= maxLen; i++ {
+		if impl(buf, 1, i, alphabet, encrypt, signature, hash) {
+			secret <- buf[:i]
 			return
 		}
 	}
+}
 
-	g_alphabet_len := len(alphabet)
+func check(payload []byte, signature []byte, secret []byte, hash func() hash.Hash) bool {
+	hm := hmac.New(hash, secret)
+	hm.Write(payload)
+	return bytes.Compare(hm.Sum(nil), signature) == 0
+}
 
-	// Split the JWT into header, payload and signature
-	splited:=strings.Split(jwt, ".")
-	g_header_b64 := splited[0]
-	g_payload_b64 := splited[1]
-	g_signature_b64 :=splited[2]
-	g_header_b64_len := len(g_header_b64);
-	g_payload_b64_len := len(g_payload_b64);
-	g_signature_b64_len := len(g_signature_b64);
-
-	// Recreate the part that is used to create the signature
-	// Since it will always be the same
-	//g_to_encrypt_len := g_header_b64_len + 1 + g_payload_b64_len;
-	//g_to_encrypt := (unsigned char *) malloc(g_to_encrypt_len + 1);
-	//sprintf((char *) g_to_encrypt, "%s.%s", g_header_b64, g_payload_b64);
-
-	// Decode the signature
-
-	g_signature,_ := base64.StdEncoding.DecodeString(g_signature_b64)
-
-
-
-	//struct s_thread_data *pointers_data[g_alphabet_len];
-
-		for i := 0; i < g_alphabet_len; i++ {
-		pointers_data[i] = malloc(sizeof(struct s_thread_data));
-		init_thread_data(pointers_data[i], g_alphabet[i], max_len, evp_md);
-		pthread_create(&tid[i], NULL, (void *(*)(void *)) brute_sequential, pointers_data[i]);
-	}
-
-		for  i := 0; i < g_alphabet_len; i++{
-				pthread_join(tid[i], NULL);
+func impl(buf []byte, index int, maxDepth int, alphabet string, encrypt []byte, signature []byte, hash func() hash.Hash) bool {
+	for i := 0; i < len(alphabet); i++ {
+		buf[index] = alphabet[i]
+		if index == maxDepth-1 {
+			if check(encrypt, signature, buf[:maxDepth], hash) {
+				return true
 			}
-		if (g_found_secret == NULL){
-		fmt.Print("No solution found :-(\n");
-		}  else{
-			fmt.Printf("Secret is \"%s\"\n", g_found_secret);
+		} else {
+			if impl(buf, index+1, maxDepth, alphabet, encrypt, signature, hash) {
+				return true
+			}
 		}
 	}
-
-/*func usage(cmd string, alphabet string, maxLen int, hmacAlg string) {
-	fmt.Printf("%s <token> [alphabet] [max_len] [hmac_alg]\nDefaults: alphabet=%s, max_len=%d, hmac_alg=%s\n", cmd, alphabet, maxLen, hmacAlg)
+	return false
 }
-*/
-	type s_thread_data struct {
-		const EVP_MD *g_evp_md; // The hash function to apply the HMAC to
-
-		// Holds the computed signature at each iteration to compare it with the original
-		// signature
-		unsigned char *g_result;
-		unsigned int g_result_len;
-
-		char *g_buffer; // Holds the secret being constructed
-
-		char starting_letter; // Each thread is assigned a first letter
-		size_t max_len; // And tries combinations up to a certain length
-	};

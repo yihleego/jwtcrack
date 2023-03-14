@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/sha512"
@@ -10,6 +11,7 @@ import (
 	"fmt"
 	"hash"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -65,7 +67,6 @@ func main() {
 	}
 	fmt.Printf("Secret is \"%s\"\n", secret)
 }
-
 func crack(jwt, alphabet string, maxLen int, hash func() hash.Hash) (string, error) {
 	parts := strings.Split(jwt, ".")
 	encrypt := []byte(parts[0] + "." + parts[1])
@@ -73,51 +74,76 @@ func crack(jwt, alphabet string, maxLen int, hash func() hash.Hash) (string, err
 	if err != nil {
 		return "", err
 	}
-	res := make(chan []byte, 1)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 	wg := sync.WaitGroup{}
+	secret := make(chan []byte, 1)
+	tasks := make([]*task, len(alphabet))
 	for i := 0; i < len(alphabet); i++ {
+		tasks[i] = newTask(ctx, alphabet, alphabet[i], maxLen, encrypt, signature, hash)
+	}
+	for i := 0; i < len(tasks); i++ {
 		wg.Add(1)
-		index := i
+		t := tasks[i]
 		go func() {
-			run(alphabet, index, maxLen, encrypt, signature, hash, res)
-			wg.Done()
+			defer wg.Done()
+			res := t.run()
+			if res != nil {
+				fmt.Println("Yeah", res)
+				cancel()
+				secret <- res
+			}
 		}()
 	}
 	wg.Wait()
-	close(res)
-	secret, ok := <-res
+	close(secret)
+	v, ok := <-secret
 	if ok {
-		return string(secret), nil
+		return string(v), nil
 	} else {
 		return "", errors.New("no secret found")
 	}
 }
 
-func run(alphabet string, index int, maxLen int, encrypt []byte, signature []byte, hash func() hash.Hash, secret chan []byte) {
-	special := []byte{alphabet[index]}
-	if check(encrypt, signature, special, hash) {
-		secret <- special
-		return
-	}
-	buf := make([]byte, maxLen+1)
-	buf[0] = alphabet[index]
-	for i := 2; i <= maxLen; i++ {
-		if brute(buf, 1, i, alphabet, encrypt, signature, hash) {
-			secret <- buf[:i]
-			return
-		}
-	}
+type task struct {
+	ctx       context.Context
+	alphabet  string
+	letter    byte
+	maxLen    int
+	payload   []byte
+	signature []byte
+	hash      func() hash.Hash
 }
 
-func brute(buf []byte, index int, maxDepth int, alphabet string, encrypt []byte, signature []byte, hash func() hash.Hash) bool {
-	for i := 0; i < len(alphabet); i++ {
-		buf[index] = alphabet[i]
+func newTask(ctx context.Context, alphabet string, letter byte, maxLen int, payload []byte, signature []byte, hash func() hash.Hash) *task {
+	return &task{ctx, alphabet, letter, maxLen, payload, signature, hash}
+}
+
+func (t *task) run() []byte {
+	special := []byte{t.letter}
+	if t.check(special) {
+		return special
+	}
+	buffer := make([]byte, t.maxLen+1)
+	buffer[0] = t.letter
+	for i := 2; i <= t.maxLen; i++ {
+		if t.brute(buffer, 1, i) {
+			return buffer[:i]
+		}
+	}
+	return nil
+}
+
+func (t *task) brute(buffer []byte, index int, maxDepth int) bool {
+	for i := 0; i < len(t.alphabet); i++ {
+		buffer[index] = t.alphabet[i]
 		if index == maxDepth-1 {
-			if check(encrypt, signature, buf[:maxDepth], hash) {
+			if t.check(buffer[:maxDepth]) {
 				return true
 			}
 		} else {
-			if brute(buf, index+1, maxDepth, alphabet, encrypt, signature, hash) {
+			if t.brute(buffer, index+1, maxDepth) {
 				return true
 			}
 		}
@@ -125,8 +151,14 @@ func brute(buf []byte, index int, maxDepth int, alphabet string, encrypt []byte,
 	return false
 }
 
-func check(payload []byte, signature []byte, secret []byte, hash func() hash.Hash) bool {
-	hm := hmac.New(hash, secret)
-	hm.Write(payload)
-	return bytes.Compare(hm.Sum(nil), signature) == 0
+func (t *task) check(secret []byte) bool {
+	select {
+	case <-t.ctx.Done():
+		runtime.Goexit()
+		return false
+	default:
+		hm := hmac.New(t.hash, secret)
+		hm.Write(t.payload)
+		return bytes.Compare(hm.Sum(nil), t.signature) == 0
+	}
 }

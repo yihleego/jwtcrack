@@ -7,9 +7,9 @@ import (
 )
 
 func TestSimpleSecret(t *testing.T) {
-	jwt := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNTE2MjM5MDIyLCJuYW1lIjoiand0Y3JhY2sifQ.aEvscuTZwlmox-pvoRStER7u-F-xTSJMjRgVm0OJy2E"
-	secret := "123"
-	actual, err := crack(jwt, "12345", 3, sha256.New)
+	jwt := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNTE2MjM5MDIyLCJuYW1lIjoiand0Y3JhY2sifQ.2R40frvzOUV4gO3fgLamhB1tRVUD3IX8FqTiWqp0Iho"
+	secret := "secret"
+	actual, err := crack(jwt, "abcedrst", 6, sha256.New)
 	if err != nil {
 		t.Fatal(err)
 	}

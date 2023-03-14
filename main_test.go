@@ -6,6 +6,19 @@ import (
 	"testing"
 )
 
+func TestSingleSecret(t *testing.T) {
+	jwt := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNTE2MjM5MDIyLCJuYW1lIjoiand0Y3JhY2sifQ.ck3o0BqvmrfkIjywkzxDuAufJeHOinQBPdhMw6bkUvE"
+	secret := "1"
+	actual, err := crack(jwt, "12345", 3, sha256.New)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if actual != secret {
+		t.Fatal("incorrect secret", secret, actual)
+	}
+	t.Logf("secret is '%s'", secret)
+}
+
 func TestSimpleSecret(t *testing.T) {
 	jwt := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNTE2MjM5MDIyLCJuYW1lIjoiand0Y3JhY2sifQ.2R40frvzOUV4gO3fgLamhB1tRVUD3IX8FqTiWqp0Iho"
 	secret := "secret"
@@ -19,10 +32,10 @@ func TestSimpleSecret(t *testing.T) {
 	t.Logf("secret is '%s'", secret)
 }
 
-func TestSingleSecret(t *testing.T) {
-	jwt := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNTE2MjM5MDIyLCJuYW1lIjoiand0Y3JhY2sifQ.ck3o0BqvmrfkIjywkzxDuAufJeHOinQBPdhMw6bkUvE"
-	secret := "1"
-	actual, err := crack(jwt, "12345", 3, sha256.New)
+func TestLongSecret(t *testing.T) {
+	jwt := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNTE2MjM5MDIyLCJuYW1lIjoiand0Y3JhY2sifQ.fIpbi0aDVkGqfv5ykHlrCwXsd89pRmK8-EGSnlWNodg"
+	secret := "helloworld"
+	actual, err := crack(jwt, "abcdefghijklmnopqrstuvwxyz", 10, sha256.New)
 	if err != nil {
 		t.Fatal(err)
 	}

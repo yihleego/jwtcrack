@@ -19,7 +19,7 @@ func TestSingleSecret(t *testing.T) {
 	t.Logf("secret is '%s'", secret)
 }
 
-func TestSimpleSecret(t *testing.T) {
+func TestShortSecret(t *testing.T) {
 	jwt := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNTE2MjM5MDIyLCJuYW1lIjoiand0Y3JhY2sifQ.2R40frvzOUV4gO3fgLamhB1tRVUD3IX8FqTiWqp0Iho"
 	secret := "secret"
 	actual, err := crack(jwt, "abcedrst", 6, sha256.New)
@@ -33,9 +33,9 @@ func TestSimpleSecret(t *testing.T) {
 }
 
 func TestLongSecret(t *testing.T) {
-	jwt := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNTE2MjM5MDIyLCJuYW1lIjoiand0Y3JhY2sifQ.fIpbi0aDVkGqfv5ykHlrCwXsd89pRmK8-EGSnlWNodg"
-	secret := "hiworld"
-	actual, err := crack(jwt, "abcdefghijklmnopqrstuv", 7, sha256.New)
+	jwt := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNTE2MjM5MDIyLCJuYW1lIjoia296bWEifQ.6H8yfBKE5CdcMzdRo87Lk0ya6MxvCWfJbYBOiO3rM70"
+	secret := "kozma"
+	actual, err := crack(jwt, "abcdefghijklmnopqrstuvwxyz", 6, sha256.New)
 	if err != nil {
 		t.Fatal(err)
 	}

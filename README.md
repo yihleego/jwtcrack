@@ -35,6 +35,10 @@ docker run -it --rm jwtcrack eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMj
 ./jwtcrack <token> [alphabet] [maxlen] [algorithm]
 ```
 
+- Default alphabet: `ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789`
+- Default maxlen: `6`
+- Default algorithm: `HS256`
+
 ### HS256
 
 ```shell

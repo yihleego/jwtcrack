@@ -7,7 +7,6 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/base64"
-	"errors"
 	"fmt"
 	"hash"
 	"os"
@@ -26,7 +25,7 @@ const (
 type task struct {
 	ctx       context.Context
 	alphabet  string           // alphabet is used to brute force
-	letter    byte             // Each task assigns a letter
+	letter    byte             // each task assigns a letter of the alphabet
 	maxLen    int              // combinations up to a certain length
 	payload   []byte           // payload is used to generate a signature compared to the given signature
 	signature []byte           // the given decoded base64 signature
@@ -143,7 +142,11 @@ func main() {
 		fmt.Println(err)
 		return
 	}
-	fmt.Printf("Secret is \"%s\"\n", secret)
+	if secret == "" {
+		fmt.Println("No secret found")
+		return
+	}
+	fmt.Printf("Eureka! Secret is \"%s\"\n", secret)
 }
 
 func crack(jwt, alphabet string, maxLen int, hash func() hash.Hash) (string, error) {
@@ -189,6 +192,6 @@ func crack(jwt, alphabet string, maxLen int, hash func() hash.Hash) (string, err
 	if ok {
 		return string(v), nil
 	} else {
-		return "", errors.New("no secret found")
+		return "", nil
 	}
 }
